@@ -5,7 +5,7 @@
                 <div class="splitter">
                     <div id="first">
                         <div class="p-3">
-                            <h4 class="mb-3">OLevelS Card</h4>
+                            <h4 class="mb-3">Student Card App</h4>
                             <form @submit.prevent="CreateCard" method="post">
                                 <div class="row gx-2">
                                     <div class="col-md-6">
@@ -73,7 +73,9 @@
                     <div id="separator"></div>
                     <div id="preview-screen">
                         <canvas id="studentcard" width="142" height="213"></canvas>
+
                     </div>
+
                 </div>
 
             </div>
@@ -227,29 +229,51 @@ export default {
         //     // html2pdf().from(canvas.lowerCanvasEl).set(options).save();
         // },
 
-
-
-
         downloadCard(canvas, name = 'studentcard.pdf') {
+            const printWidth = 106; // Width in mm
+            const printHeight = 159; // Height in mm
+
+            // Create a canvas with the desired print dimensions
             var tempCanvas = document.createElement("canvas");
+            tempCanvas.width = printWidth * 3; // Multiply by scale factor
+            tempCanvas.height = printHeight * 3; // Multiply by scale factor
             var ctx = tempCanvas.getContext("2d");
             var img = new Image();
-            const scale = 2;
-            tempCanvas.width = canvas.width * scale;
-            tempCanvas.height = canvas.height * scale;
+
             img.onload = function () {
                 ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
                 var imageData = tempCanvas.toDataURL("image/jpeg", 1.0);
-                var pdf = new jsPDF('p', 'mm', [canvas.width, canvas.height]);
-                pdf.addImage(imageData, 'JPEG', 0, 0, canvas.width, canvas.height);
+                var pdf = new jsPDF({
+                    unit: 'mm',
+                    format: [printWidth, printHeight],
+                });
+                pdf.addImage(imageData, 'JPEG', 0, 0, printWidth, printHeight);
                 pdf.save(name);
             };
             var filedata = canvas.toSVG();
             img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(filedata)));
-        }
+        },
 
 
-        ,
+
+
+        // downloadCard(canvas, name = 'studentcard.pdf') {
+        //     var tempCanvas = document.createElement("canvas");
+        //     var ctx = tempCanvas.getContext("2d");
+        //     var img = new Image();
+        //     const scale = 3;
+        //     tempCanvas.width = canvas.width * scale;
+        //     tempCanvas.height = canvas.height * scale;
+        //     img.onload = function () {
+        //         ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+        //         var imageData = tempCanvas.toDataURL("image/jpeg", 1.0);
+        //         var pdf = new jsPDF('p', 'px', [canvas.width, canvas.height]);
+        //         pdf.addImage(imageData, 'JPEG', 0, 0, canvas.width, canvas.height);
+        //         pdf.save(name);
+        //     };
+        //     var filedata = canvas.toSVG();
+        //     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(filedata)));
+        // },
 
 
         downloadCards() {
@@ -257,17 +281,42 @@ export default {
                 rootEl.downloadCard(studentcard);
             }, 3000);
         },
+        // handleImageChange(event) {
+        //     const file = event.target.files[0];
+        //     const reader = new FileReader();
+        //     reader.onload = (event) => {
+        //         const imageUrl = event.target.result;
+        //         this.student.studentImage = imageUrl;
+        //         this.replaceClippingImage(imageUrl);
+
+        //     };
+        //     reader.readAsDataURL(file);
+        // },
+
         handleImageChange(event) {
             const file = event.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const imageUrl = event.target.result;
-                this.student.studentImage = imageUrl;
-                this.replaceClippingImage(imageUrl);
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = this.$refs.img; // Reference to the canvas element
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = img.width; // Set canvas dimensions to match image dimensions
+                        canvas.height = img.height;
+                        ctx.drawImage(img, 0, 0); // Draw the image onto the canvas
+                    };
+                    const imageUrl = e.target.result;
+                    this.student.studentImage = imageUrl;
+                    this.replaceClippingImage(imageUrl);
+                    img.src = e.target.result; // Set the image source
 
-            };
-            reader.readAsDataURL(file);
+                };
+                reader.readAsDataURL(file); // Read the uploaded file as a data URL
+            }
         },
+
+
         replaceClippingImage(imageUrl) {
             const containerWidth = 50;
             const containerHeight = 50;
@@ -284,27 +333,16 @@ export default {
             img.onload = () => {
                 imgCtx.clearRect(0, 0, imgCanvas.width, imgCanvas.height);
                 imgCtx.beginPath();
-                imgCtx.arc(radius, radius, radius, 0, Math.PI * 2, true); // draw circle
+                imgCtx.arc(radius, radius, radius, 0, Math.PI * 2, true);
                 imgCtx.closePath();
                 imgCtx.clip();
-
-                // Calculate scaling factor to fit the image within the circle
-                const scalingFactor = Math.min(containerWidth / img.width, containerHeight / img.height);
-
-                // Draw the image inside the circle
+                const scalingFactor = Math.max(containerWidth / img.width, containerHeight / img.height);
                 const scaledWidth = img.width * scalingFactor;
-                console.log('scaledWidth', scaledWidth);
                 const scaledHeight = img.height * scalingFactor;
-                console.log('scaledHeight', scaledHeight);
                 const offsetX = (containerWidth - scaledWidth) / 2;
-                console.log('offsetX', offsetX);
                 const offsetY = (containerHeight - scaledHeight) / 2;
-                console.log('offsetY', offsetY);
                 imgCtx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
-
-                // Convert canvas to base64 URL
                 const clippedImageUrl = imgCanvas.toDataURL();
-                console.log('clippedImageUrl', clippedImageUrl);
                 fabric.Image.fromURL(clippedImageUrl, (fabricImg) => {
                     const circle = new fabric.Circle({
                         radius: radius,
@@ -316,11 +354,8 @@ export default {
                         originX: 'center',
                         originY: 'center',
                     });
-                    console.log('circle.width', clippedImageUrl);
-                    console.log('img.width', img.width);
                     const scaleFactor = radius * 2 / Math.max(fabricImg.width, fabricImg.height);
                     fabricImg.scale(scaleFactor);
-                    console.log('scalingFactor', scalingFactor);
                     fabricImg.set({
                         left: circle.left,
                         top: circle.top,
@@ -340,7 +375,6 @@ export default {
         student: {
             deep: true,
             handler(newStudentData) {
-                console.log(newStudentData);
                 this.loadBackground(studentcard, './branding/theme/studentcard.svg', newStudentData);
             }
         }
@@ -354,11 +388,19 @@ export default {
     border: 1px solid #ccc;
 }
 
+
 .splitter {
     width: 100%;
     height: 100%;
     display: flex;
     padding: 0;
+}
+
+
+#preview-image {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 50%;
 }
 
 #separator {
